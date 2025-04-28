@@ -56,14 +56,14 @@ export function dispatch<T = any>(type: string) {
 
 
 // Types
-export type ConfigFunction<T> = () => Observable<T>;
+export type ConfigFunction<T> = (qapi: IQapi) => Observable<T>;
 
 
 export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
     const [value, setValue] = useState<T>();
 
     useEffect(() => {
-        const observable = configFn();
+        const observable = configFn(window.client);
         const subscription: Subscription = observable.subscribe({
             next: (val) => setValue(val),
             error: (err) => console.error('useStream error:', err),
@@ -79,6 +79,12 @@ export interface IQapi {
 
 }
 
+export class Qapi implements IQapi {
+    Source(expression: string): Observable<any> {
+        return window.client.Source(expression);
+    }
+}
+
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
     mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
@@ -88,8 +94,7 @@ export function connect<TState, TDispatch = any>(
         // Return a new component wrapped with state and dispatch
         return function WithReduxWrapper(props: P) {
 
-            console.log(props, "DØDH")
-            const stateProps = useStream<TState>(() => mapStateToProps({}, props));
+            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props));
             //const dispatch = useDispatch();
 
             // Map dispatch actions to props
