@@ -27,9 +27,6 @@ export function combineLatestObject<T>(input: { [key: string]: T | Observable<T>
 // This is our global "event bus"
 export const eventBus = new Subject<any>();
 
-eventBus.subscribe((t) => {
-    console.log(t);
-})
 
 /**
  * usePublish hook
@@ -63,7 +60,11 @@ export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
     const [value, setValue] = useState<T>();
 
     useEffect(() => {
-        const observable = configFn(window.client);
+        let observable = configFn(window.client);
+
+        if (!isObservable(observable)) {
+            observable = of(observable);
+        }
         const subscription: Subscription = observable.subscribe({
             next: (val) => setValue(val),
             error: (err) => console.error('useStream error:', err),
@@ -90,6 +91,7 @@ export function connect<TState, TDispatch = any>(
     mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
     mapDispatchToProps: any // mapDispatch function (actions)
 ) {
+    mapDispatchToProps = mapDispatchToProps ?? {};
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
         return function WithReduxWrapper(props: P) {
