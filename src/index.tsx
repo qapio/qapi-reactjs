@@ -51,16 +51,30 @@ export function dispatch<T = any>(type: string) {
     return publish;
 }
 
+export interface IQapi {
+
+}
+
+export class Qapi implements IQapi {
+    constructor(private readonly client, private readonly overrides = {}) {
+    }
+    Source(expression: string): Observable<any> {
+
+        return this.overrides[expression] ?? this.client.Source(expression);
+    }
+}
 
 // Types
 export type ConfigFunction<T> = (qapi: IQapi) => Observable<T>;
 
 
+export const Overrides = {};
+
 export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
     const [value, setValue] = useState<T>();
 
     useEffect(() => {
-        let observable = configFn(window.client);
+        let observable = configFn(new Qapi(window.client, Overrides));
 
         if (!isObservable(observable)) {
             observable = of(observable);
@@ -76,15 +90,7 @@ export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
     return value;
 }
 
-export interface IQapi {
 
-}
-
-export class Qapi implements IQapi {
-    Source(expression: string): Observable<any> {
-        return window.client.Source(expression);
-    }
-}
 
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
