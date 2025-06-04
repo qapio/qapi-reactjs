@@ -34,18 +34,16 @@ export const eventBus = new Subject<any>();
  */
 export function useDispatch<T = any>(type: string) {
     const publish = useCallback((payload: T) => {
-        console.log("JAJA!")
         eventBus.next({type, payload});
     }, []);
 
     return publish;
 }
 
-export function dispatch<T = any>(type: string) {
+export function dispatch<T = any>(type: string, graphId: string = null) {
 
     const publish = (payload: T) => {
-        console.log("HAL"+payload)
-        eventBus.next({type, payload});
+        window.client.Dispatcher({Type: type, Payload: payload, Meta: {GraphId: graphId}});
     };
 
     return publish;
@@ -61,6 +59,10 @@ export class Qapi implements IQapi {
     Source(expression: string): Observable<any> {
 
         return this.overrides[expression] ?? this.client.Source(expression);
+    }
+
+    Dispatch(action) {
+
     }
 }
 
@@ -95,9 +97,10 @@ export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
     mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
-    mapDispatchToProps: any // mapDispatch function (actions)
+    mapDispatchToProps: (disp) => any // mapDispatch function (actions)
 ) {
-    mapDispatchToProps = mapDispatchToProps ?? {};
+    mapDispatchToProps = mapDispatchToProps ?? ((disp) => ({}));
+
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
         return function WithReduxWrapper(props: P) {
@@ -106,8 +109,10 @@ export function connect<TState, TDispatch = any>(
             //const dispatch = useDispatch();
 
             // Map dispatch actions to props
-            const dispatchProps = Object.keys(mapDispatchToProps).reduce((acc, key) => {
-                acc[key] = (...args: any[]) => mapDispatchToProps[key](...args);
+            const disp = mapDispatchToProps((type, graphId) => dispatch(type, graphId ?? stateProps?.___graphId));
+
+            const dispatchProps = Object.keys(disp).reduce((acc, key) => {
+                acc[key] = (...args: any[]) => disp[key](...args);
                 return acc;
             }, {});
 
