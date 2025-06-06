@@ -1,7 +1,10 @@
 import * as React from "react";
 import { useEffect, useState, ComponentType, useCallback } from "react";
 import {Observable, Subscription, map, combineLatest, of, Subject, isObservable, NEVER} from "rxjs";
+import * as Uuid from "uuid";
 
+
+// The function to handle the object with possible observables or values
 export function combineLatestObject<T>(input: { [key: string]: T | Observable<T> }): Observable<{ [key: string]: T }> {
     // Convert all values to observables if they aren't already
     const observables = Object.keys(input).map(key => {
@@ -47,16 +50,17 @@ export function dispatch<T = any>(type: string, graphId: string = null) {
     return publish;
 }
 
+
 export interface IQapi {
 
 }
 
 export class Qapi implements IQapi {
-    constructor(private readonly client, private readonly overrides = {}) {
+    constructor(private readonly client, private readonly overrides = {}, private readonly variables = {}) {
     }
     Source(expression: string): Observable<any> {
 
-        return this.overrides[expression] ?? this.client.Source(expression);
+        return this.overrides[expression] ?? this.client.Source(expression, this.variables);
     }
 
     Dispatch(action) {
@@ -70,11 +74,11 @@ export type ConfigFunction<T> = (qapi: IQapi) => Observable<T>;
 
 export const Overrides = {};
 
-export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
+export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: string]: any} = {}): T | undefined {
     const [value, setValue] = useState<T>();
 
     useEffect(() => {
-        let observable = configFn(new Qapi(window.client, Overrides));
+        let observable = configFn(new Qapi(window.client, Overrides, variables));
 
         if (!isObservable(observable)) {
             observable = of(observable);
@@ -99,15 +103,19 @@ export function connect<TState, TDispatch = any>(
 ) {
     mapDispatchToProps = mapDispatchToProps ?? ((disp, source) => ({}));
 
+    const name = `Interop_${Uuid.v6().replaceAll("-", "")}`;
+    console.log(name);
+
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
+
         return function WithReduxWrapper(props: P) {
 
-            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props));
+            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props), {connectionId: name});
 
-            const [viewProps, setViewProps] = useState({});
+            const [viewProps, setViewProps] = useState();
 
-            const disp = mapDispatchToProps((type, graphId) => dispatch(type, graphId ?? stateProps?.___graphId), (name) => stateProps?.___actor ? window.client.Source(`${stateProps?.___actor}.Stage({Name: '${name}'})`) : NEVER);
+            const disp = mapDispatchToProps((type, graphId) => dispatch(type, graphId ?? stateProps?.___graphId), (key) => window.client.Source(`${name}.Stage({Name: '${key}'})`));
 
             const streams = {};
 
@@ -132,7 +140,9 @@ export function connect<TState, TDispatch = any>(
                     error: (err) => console.error('useStream error:', err),
                 });
 
-                return () => subscription.unsubscribe();
+                return () => {
+                    subscription.unsubscribe();
+                };
             }, [stateProps]);
 
             // Return the wrapped component with state + dispatch injected
