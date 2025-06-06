@@ -1,9 +1,7 @@
 import * as React from "react";
 import { useEffect, useState, ComponentType, useCallback } from "react";
-import {Observable, Subscription, map, combineLatest, of, Subject, isObservable} from "rxjs";
+import {Observable, Subscription, map, combineLatest, of, Subject, isObservable, NEVER} from "rxjs";
 
-
-// The function to handle the object with possible observables or values
 export function combineLatestObject<T>(input: { [key: string]: T | Observable<T> }): Observable<{ [key: string]: T }> {
     // Convert all values to observables if they aren't already
     const observables = Object.keys(input).map(key => {
@@ -97,27 +95,48 @@ export function useStream<T>(configFn: ConfigFunction<T>): T | undefined {
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
     mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
-    mapDispatchToProps: (disp) => any // mapDispatch function (actions)
+    mapDispatchToProps: (disp, source) => any // mapDispatch function (actions)
 ) {
-    mapDispatchToProps = mapDispatchToProps ?? ((disp) => ({}));
+    mapDispatchToProps = mapDispatchToProps ?? ((disp, source) => ({}));
 
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
         return function WithReduxWrapper(props: P) {
 
             const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props));
-            //const dispatch = useDispatch();
 
-            // Map dispatch actions to props
-            const disp = mapDispatchToProps((type, graphId) => dispatch(type, graphId ?? stateProps?.___graphId));
+            const [viewProps, setViewProps] = useState({});
+
+            const disp = mapDispatchToProps((type, graphId) => dispatch(type, graphId ?? stateProps?.___graphId), (name) => stateProps?.___actor ? window.client.Source(`${stateProps?.___actor}.Stage({Name: '${name}'})`) : NEVER);
+
+            const streams = {};
 
             const dispatchProps = Object.keys(disp).reduce((acc, key) => {
-                acc[key] = (...args: any[]) => disp[key](...args);
-                return acc;
+
+                if (isObservable(disp[key])) {
+                    streams[key] = disp[key];
+                    return acc;
+                } else {
+                    acc[key] = (...args: any[]) => disp[key](...args);
+                    return acc;
+                }
+
             }, {});
 
+            useEffect(() => {
+
+                const subscription: Subscription = combineLatestObject(streams).subscribe({
+                    next: (val) => {
+                        setViewProps(val);
+                    },
+                    error: (err) => console.error('useStream error:', err),
+                });
+
+                return () => subscription.unsubscribe();
+            }, [stateProps]);
+
             // Return the wrapped component with state + dispatch injected
-            return <WrappedComponent {...props} {...stateProps} {...dispatchProps} />;
+            return <WrappedComponent {...props} {...stateProps} {...dispatchProps} {...viewProps} />;
         };
     };
 }

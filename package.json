@@ -1,6 +1,6 @@
 {
   "name": "@qapio/qapi-reactjs",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "",
   "type": "module",
   "exports": "./dist/index.js",
@@ -19,6 +19,9 @@
   "peerDependencies": {
     "react": ">=16"
   },
+  "dependencies": {
+
+  },
   "homepage": "https://github.com/qapio/qapi-reactjs#readme",
   "devDependencies": {
     "@types/react": "^19.1.2",
@@ -29,5 +32,6 @@
     "react-dom": "^19.1.0",
     "typescript": "^5.8.3",
     "rxjs": "^7.8.2"
+
   }
 }
