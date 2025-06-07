@@ -41,10 +41,10 @@ export function useDispatch<T = any>(type: string) {
     return publish;
 }
 
-export function dispatch<T = any>(type: string, graphId: string = null) {
+export function dispatch<T = any>(type: string, endpoint: string = null) {
 
     const publish = (payload: T) => {
-        window.client.Dispatcher({Type: type, Payload: payload, Meta: {GraphId: graphId}});
+        window.client.Dispatcher({Type: type, Payload: payload, Meta: {Endpoint: endpoint}});
     };
 
     return publish;
@@ -103,19 +103,18 @@ export function connect<TState, TDispatch = any>(
 ) {
     mapDispatchToProps = mapDispatchToProps ?? ((disp, source) => ({}));
 
-    const name = `Interop_${Uuid.v6().replaceAll("-", "")}`;
-    console.log(name);
+    const endpoint = `Interop_${Uuid.v6().replaceAll("-", "")}`;
 
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
 
         return function WithReduxWrapper(props: P) {
 
-            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props), {connectionId: name});
+            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props), {Endpoint: endpoint});
 
             const [viewProps, setViewProps] = useState();
 
-            const disp = mapDispatchToProps((type, graphId) => dispatch(type, graphId ?? stateProps?.___graphId), (key) => window.client.Source(`${name}.Stage({Name: '${key}'})`));
+            const disp = mapDispatchToProps((type, graphId) => dispatch(type, endpoint), (key) => window.client.Source(`${endpoint}.Stage({Name: '${key}'})`));
 
             const streams = {};
 
