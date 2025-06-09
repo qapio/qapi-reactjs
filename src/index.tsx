@@ -3,7 +3,6 @@ import { useEffect, useState, ComponentType, useCallback } from "react";
 import {Observable, Subscription, map, combineLatest, of, Subject, isObservable, NEVER} from "rxjs";
 import * as Uuid from "uuid";
 
-
 // The function to handle the object with possible observables or values
 export function combineLatestObject<T>(input: { [key: string]: T | Observable<T> }): Observable<{ [key: string]: T }> {
     // Convert all values to observables if they aren't already
@@ -114,7 +113,14 @@ export function connect<TState, TDispatch = any>(
 
             const [viewProps, setViewProps] = useState();
 
-            const disp = mapDispatchToProps((type, graphId) => dispatch(type, endpoint), (key) => window.client.Source(`${endpoint}.Stage({Name: '${key}'})`));
+            const disp = mapDispatchToProps((type, graphId) => dispatch(type, endpoint), (key: string) =>
+            {
+                if (key.includes(".")) {
+                    return new Qapi(window.client, {}, {Endpoint: endpoint}).Source(key);
+                } else {
+                    return window.client.Source(`${endpoint}.Stage({Name: '${key}'})`);
+                }
+            });
 
             const streams = {};
 
@@ -129,6 +135,7 @@ export function connect<TState, TDispatch = any>(
                 }
 
             }, {});
+
 
             useEffect(() => {
 
