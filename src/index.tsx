@@ -113,12 +113,12 @@ export function connect<TState, TDispatch = any>(
 
             const [viewProps, setViewProps] = useState();
 
-            const disp = mapDispatchToProps((type, graphId) => dispatch(type, endpoint), (key: string) =>
+            const disp = mapDispatchToProps((type, graphId) => dispatch(type, endpoint), (key: string, ...payload: any) =>
             {
                 if (key.includes(".")) {
                     return new Qapi(window.client, {}, {Endpoint: endpoint}).Source(key);
                 } else {
-                    return window.client.Source(`${endpoint}.Stage({Name: '${key}'})`);
+                    return window.client.Source(`${endpoint}.Stage({Name: '${key}', Payload: ${JSON.stringify(payload)}})`);
                 }
             });
 
