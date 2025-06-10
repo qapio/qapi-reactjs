@@ -57,12 +57,12 @@ export interface IQapi {
 export class Qapi implements IQapi {
     constructor(private readonly client, private readonly overrides = {}, private readonly variables = {}) {
     }
-    Source(expression: string): Observable<any> {
+    Source = (expression: string): Observable<any> => {
 
         return this.overrides[expression] ?? this.client.Source(expression, this.variables);
     }
 
-    Dispatch(action) {
+    Dispatch = (action)=> {
 
     }
 }
