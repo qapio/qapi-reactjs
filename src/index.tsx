@@ -98,9 +98,9 @@ export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: stri
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
     mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
-    mapDispatchToProps: (disp, source) => any // mapDispatch function (actions)
+    mapDispatchToProps: (disp, source, ownProps) => any // mapDispatch function (actions)
 ) {
-    mapDispatchToProps = mapDispatchToProps ?? ((disp, source) => ({}));
+    mapDispatchToProps = mapDispatchToProps ?? ((disp, source, ownProps) => ({}));
 
     const endpoint = `Interop_${Uuid.v6().replaceAll("-", "")}`;
 
@@ -113,14 +113,14 @@ export function connect<TState, TDispatch = any>(
 
             const [viewProps, setViewProps] = useState();
 
-            const disp = mapDispatchToProps((type, graphId) => dispatch(type, endpoint), (key: string, ...payload: any) =>
+            const disp = mapDispatchToProps({Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
             {
                 if (key.includes(".")) {
                     return new Qapi(window.client, {}, {Endpoint: endpoint}).Source(key);
                 } else {
                     return window.client.Source(`${endpoint}.Stage({Name: '${key}', Payload: ${JSON.stringify(payload)}})`);
                 }
-            });
+            }}, props);
 
             const streams = {};
 
