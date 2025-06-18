@@ -98,20 +98,20 @@ export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: stri
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
     mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
-    mapDispatchToProps: (disp, source, ownProps) => any // mapDispatch function (actions)
+    mapDispatchToProps: (qapi, ownProps) => any // mapDispatch function (actions)
 ) {
-    mapDispatchToProps = mapDispatchToProps ?? ((disp, source, ownProps) => ({}));
+    mapDispatchToProps = mapDispatchToProps ?? ((qapi, ownProps) => ({}));
 
-    const endpoint = `Interop_${Uuid.v6().replaceAll("-", "")}`;
 
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
+        const endpoint = `Interop_${Uuid.v6().replaceAll("-", "")}`;
 
         return function WithReduxWrapper(props: P) {
 
             const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props), {Endpoint: endpoint});
 
-            const [viewProps, setViewProps] = useState();
+            const [viewProps, setViewProps] = useState({});
 
             const disp = mapDispatchToProps({Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
             {
