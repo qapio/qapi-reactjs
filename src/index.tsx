@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect, useState, ComponentType, useCallback } from "react";
-import {Observable, Subscription, map, combineLatest, of, Subject, isObservable, NEVER} from "rxjs";
+import {Observable, Subscription, map, combineLatest, of, Subject, isObservable, finalize} from "rxjs";
 import * as Uuid from "uuid";
 
 // The function to handle the object with possible observables or values
@@ -76,8 +76,10 @@ export const Overrides = {};
 export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: string]: any} = {}): T | undefined {
     const [value, setValue] = useState<T>();
 
-    useEffect(() => {
-        let observable = configFn(new Qapi(window.client, Overrides, variables));
+    useEffect(() =>  {
+        const qapi = new Qapi(window.client, Overrides, variables);
+
+        let observable = configFn(qapi);
 
         if (!isObservable(observable)) {
             observable = of(observable);
@@ -87,7 +89,9 @@ export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: stri
             error: (err) => console.error('useStream error:', err),
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription.unsubscribe();
+        };
     }, []);
 
     return value;
@@ -149,7 +153,7 @@ export function connect<TState, TDispatch = any>(
                 return () => {
                     subscription.unsubscribe();
                 };
-            }, [stateProps]);
+            }, []);
 
             // Return the wrapped component with state + dispatch injected
             return <WrappedComponent {...props} {...stateProps} {...dispatchProps} {...viewProps} />;
