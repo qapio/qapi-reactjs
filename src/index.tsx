@@ -49,6 +49,15 @@ export function dispatch<T = any>(type: string, endpoint: string = null) {
     return publish;
 }
 
+export function invoke(name: string, endpoint: string) {
+
+    const invocation = (...args: any[]) => {
+        window.client.Invoke({Name: name, Args: args, Endpoint: endpoint});
+    };
+
+    return invocation;
+}
+
 
 export interface IQapi {
 
@@ -117,7 +126,7 @@ export function connect<TState, TDispatch = any>(
 
             const [viewProps, setViewProps] = useState({});
 
-            const disp = mapDispatchToProps({Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
+            const disp = mapDispatchToProps({Invoke: (name: string) => invoke(name, endpoint), Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
             {
                 if (key.includes(".")) {
                     return new Qapi(window.client, {}, {Endpoint: endpoint}).Source(key);
