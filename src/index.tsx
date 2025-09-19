@@ -129,6 +129,11 @@ export function connect<TState, TDispatch = any>(
             const disp = mapDispatchToProps({Invoke: (name: string) => invoke(name, endpoint), Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
             {
                 if (key.includes(".")) {
+
+                    if (key.startsWith("Context.")) {
+                        key = key.replace("Context.", `${endpoint}.`);
+                    }
+
                     return new Qapi(window.client, {}, {Endpoint: endpoint}).Source(key);
                 } else {
                     return window.client.Source(`${endpoint}.Stage({Name: '${key}', Payload: ${JSON.stringify(payload)}})`);
