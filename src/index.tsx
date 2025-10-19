@@ -49,6 +49,15 @@ export function dispatch<T = any>(type: string, endpoint: string = null) {
     return publish;
 }
 
+export function invokeAsync<T = any>(type: string, endpoint: string = null) {
+
+    const publish = (payload: T) => {
+       return window.client.InvokeAsync({Type: type, Payload: payload, Meta: {Endpoint: endpoint}});
+    };
+
+    return publish;
+}
+
 export function invoke(name: string, endpoint: string) {
 
     const invocation = (...args: any[]) => {
@@ -110,10 +119,10 @@ export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: stri
 
 // This is a version of `connect` that returns a HOC
 export function connect<TState, TDispatch = any>(
-    mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}) => Observable<TState>, // mapState function
-    mapDispatchToProps: (qapi, ownProps) => any // mapDispatch function (actions)
+    mapStateToProps: (state: IQapi, ownProps: {[key: string]: any}, endpoint: string) => Observable<TState>, // mapState function
+    mapDispatchToProps: (qapi, ownProps, endpoint: string) => any // mapDispatch function (actions)
 ) {
-    mapDispatchToProps = mapDispatchToProps ?? ((qapi, ownProps) => ({}));
+    mapDispatchToProps = mapDispatchToProps ?? ((qapi, ownProps, endpoint) => ({}));
 
 
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
@@ -122,11 +131,11 @@ export function connect<TState, TDispatch = any>(
 
         return function WithReduxWrapper(props: P) {
 
-            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props), {Endpoint: endpoint});
+            const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props, endpoint), {Endpoint: endpoint});
 
             const [viewProps, setViewProps] = useState({});
 
-            const disp = mapDispatchToProps({Invoke: (name: string) => invoke(name, endpoint), Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
+            const disp = mapDispatchToProps({Invoke: (name: string) => invoke(name, endpoint), InvokeAsync: (type, graphId) => invokeAsync(type, graphId ?? endpoint), Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
             {
                 if (key.includes(".")) {
 
@@ -138,7 +147,7 @@ export function connect<TState, TDispatch = any>(
                 } else {
                     return window.client.Source(`${endpoint}.Stage({Name: '${key}', Payload: ${JSON.stringify(payload)}})`);
                 }
-            }}, props);
+            }}, props, endpoint);
 
             const streams = {};
 
