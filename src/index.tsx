@@ -49,7 +49,7 @@ export function dispatch<T = any>(type: string, endpoint: string = null) {
     return publish;
 }
 
-export function invokeAsync<T = any>(type: string, endpoint: string = null) {
+export const invokeAsync = <T = any>(type: string, endpoint: string = null) => {
 
     const publish = (payload: T) => {
        return window.client.InvokeAsync({Type: type, Payload: payload, Meta: {Endpoint: endpoint}});
