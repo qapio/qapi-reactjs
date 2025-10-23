@@ -126,63 +126,100 @@ export function connect<TState, TDispatch = any>(
     mapDispatchToProps: (qapi, ownProps, endpoint: string) => any // mapDispatch function (actions)
 ) {
     mapDispatchToProps = mapDispatchToProps ?? ((qapi, ownProps, endpoint) => ({}));
-
+   // const safeMapDispatch = mapDispatchToProps ?? ((/*qapi, ownProps, endpoint*/) => ({} as TDispatch));
 
     return function <P extends object>(WrappedComponent: ComponentType<P>) {
         // Return a new component wrapped with state and dispatch
-        const endpoint = `Interop_${Uuid.v6().replaceAll("-", "")}`;
+/*        const endpointRef = React.useRef<string>();
+        if (!endpointRef.current) {
+            // use your Uuid.v6 if needed; I’ll use v4 here as a stand-in
+            endpointRef.current = `Interop_${Uuid.v6().replaceAll("-", "")}`;
+        }
+        const endpoint = endpointRef.current;*/
+        //const endpoint = `Interop_${Uuid.v6().replaceAll("-", "")}`;
 
-        return function WithReduxWrapper(props: P) {
+        function WithReduxWrapper(props: P) {
+
+            const endpointRef = React.useRef<string>();
+            if (!endpointRef.current) {
+                endpointRef.current = `Interop_${Uuid.v6().replaceAll("-", "")}`;
+            }
+            const endpoint = endpointRef.current!;
+
+
+            const qapiFacade = React.useMemo(() => ({
+                Invoke: (name: string) => invoke(name, endpoint),
+                InvokeAsync: (type: any, graphId?: string) => invokeAsync(type, graphId ?? endpoint),
+                Dispatch: (type: any, graphId?: string) => dispatch(type, graphId ?? endpoint),
+                Source: (key: string, ...payload: any[]) => {
+                    if (key.includes(".")) {
+                        if (key.startsWith("Context.")) key = key.replace("Context.", `${endpoint}.`);
+                        return new Qapi(window.client, {}, { Endpoint: endpoint }).Source(key);
+                    }
+                    return window.client.Source(
+                        `${endpoint}.Stage({Name: '${key}', Payload: ${JSON.stringify(payload)}})`
+                    );
+                }
+            }), [endpoint]);
 
             const stateProps = useStream<TState>((qapi) => mapStateToProps(qapi, props, endpoint), {Endpoint: endpoint});
 
-            const [viewProps, setViewProps] = useState({});
+            const disp = React.useMemo(
+                () => mapDispatchToProps(qapiFacade as any, props as any, endpoint),
+                [qapiFacade, props, endpoint]
+            );
 
-            const disp = mapDispatchToProps({Invoke: (name: string) => invoke(name, endpoint), InvokeAsync: (type, graphId) => invokeAsync(type, graphId ?? endpoint), Dispatch: (type, graphId) => dispatch(type, graphId ?? endpoint), Source: (key: string, ...payload: any) =>
-            {
-                if (key.includes(".")) {
+            const { dispatchProps, streams } = React.useMemo(() => {
+                const s: Record<string, Observable<any>> = {};
+                const d: Record<string, any> = {};
 
-                    if (key.startsWith("Context.")) {
-                        key = key.replace("Context.", `${endpoint}.`);
+                Object.keys(disp as any).forEach((key) => {
+                    const val = (disp as any)[key];
+                    if (isObservable(val)) {
+                        s[key] = val;
+                    } else if (typeof val === "function") {
+                        // preserve function identity but bind to latest val via closure
+                        d[key] = (...args: any[]) => val(...args);
+                    } else {
+                        d[key] = val; // constants are fine
                     }
-
-                    return new Qapi(window.client, {}, {Endpoint: endpoint}).Source(key);
-                } else {
-                    return window.client.Source(`${endpoint}.Stage({Name: '${key}', Payload: ${JSON.stringify(payload)}})`);
-                }
-            }}, props, endpoint);
-
-            const streams = {};
-
-            const dispatchProps = Object.keys(disp).reduce((acc, key) => {
-
-                if (isObservable(disp[key])) {
-                    streams[key] = disp[key];
-                    return acc;
-                } else {
-                    acc[key] = (...args: any[]) => disp[key](...args);
-                    return acc;
-                }
-
-            }, {});
-
-
-            useEffect(() => {
-
-                const subscription: Subscription = combineLatestObject(streams).subscribe({
-                    next: (val) => {
-                        setViewProps(val);
-                    },
-                    error: (err) => console.error('useStream error:', err),
                 });
 
-                return () => {
-                    subscription.unsubscribe();
-                };
-            }, []);
+                return { dispatchProps: d as TDispatch, streams: s };
+            }, [disp]);
 
-            // Return the wrapped component with state + dispatch injected
-            return <WrappedComponent {...props} {...stateProps} {...dispatchProps} {...viewProps} />;
-        };
+
+            const [viewProps, setViewProps] = useState<Record<string, any>>({});
+
+            useEffect(() => {
+                const keys = Object.keys(streams);
+                if (keys.length === 0) {
+                    setViewProps({});
+                    return; // nothing to subscribe to
+                }
+
+                const subscription: Subscription = combineLatestObject(streams).subscribe({
+                    next: (val) => setViewProps(val),
+                    error: (err) => console.error("useStream error:", err),
+                });
+
+                return () => subscription.unsubscribe();
+            }, [streams]); // re-run if streams map changes
+
+            // 7) Render with merged props
+            return (
+                <WrappedComponent
+                    {...props}
+                    {...(stateProps as any)}
+                    {...(dispatchProps as any)}
+                    {...viewProps}
+                />
+            );
+        }
+
+        (WithReduxWrapper as any).displayName =
+            `connect(${WrappedComponent.displayName || WrappedComponent.name || "Component"})`;
+
+        return WithReduxWrapper;
     };
 }
