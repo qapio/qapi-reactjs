@@ -351,7 +351,7 @@ export class QapiClient implements IQapiClient {
 
 export class QapiClientHosted implements IQapiClient {
     Dispatch(action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<void> {
-        return Promise.resolve(undefined);
+        return (window as any).client.Dispatch(action);
     }
 
     InitializeAsync(): Promise<any> {
@@ -482,7 +482,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
             return (payload) => ctx.client.Dispatch({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
           },
           InvokeAsync<T, TResult>(type: string, storeId: string = null): (payload: T) => Promise<TResult> {
-            console.log(type)
+
             return (payload) => ctx.client.InvokeAsync({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
           }
         });
