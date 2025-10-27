@@ -3,6 +3,10 @@
     "target": "esnext",
     "jsx": "react",
     "module": "esnext",
-    "moduleResolution": "node"
-  }
+    "moduleResolution": "node",
+    "outDir": "dist"
+  },
+  "include": [
+    "./src/Index.tsx"
+  ]
 }

@@ -19,8 +19,8 @@ type Qapi = {
 };
 
 type Dispatcher = {
-  Dispatch<T>(type: string): (payload: T) => void;
-  InvokeAsync<T, TResult>(type: string): (payload: T) => Promise<TResult>;
+  Dispatch<T>(type: string, endpoint?: string): (payload: T) => void;
+  InvokeAsync<T, TResult>(type: string, endpoint?: string): (payload: T) => Promise<TResult>;
 }
 
 export interface IQapiClient {
@@ -177,7 +177,7 @@ function assembleChunks(collectedChunks: Uint8Array[]) {
 
 export class QapiClient implements IQapiClient {
 
-  private _events: Subject<{ Id: string, Data: any }> = new Subject();
+  private _events: Subject<{ id: string, data: any }> = new Subject();
   private _subscriptions: Subscription[] = [];
   private _dispatch: ReplaySubject<any> = new ReplaySubject<any>(128);
   private _isSubscribed: boolean = false;
@@ -229,7 +229,7 @@ export class QapiClient implements IQapiClient {
 
     });
 
-    return firstValueFrom<any>(this._events.pipe(filter((t) => t.Id == expression), map((t) => t.Data as any)));
+    return firstValueFrom<any>(this._events.pipe(filter((t) => t.id == expression), map((t) => t.data as any)));
   }
 
   private async QueryInternal(expression: string): Promise<any> {
@@ -280,7 +280,10 @@ export class QapiClient implements IQapiClient {
     // Stream the raw bytes from fetch into an Observable<Uint8Array>
     const byteStream$ = new Observable<Uint8Array>(observer => {
       fetch(url, {
-        headers: { "Content-Type": "text/event-stream", "Accept": "text/event-stream" }
+        headers: {
+            "Content-Type": "text/event-stream",
+            "Accept": "text/event-stream"
+        }
       })
         .then(async res => {
           if (!res.ok) {
@@ -329,7 +332,6 @@ export class QapiClient implements IQapiClient {
   InvokeAsync = async (action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<any> => {
     let url = `${this.host}/invoke`;
 
-    console.log(action);
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" }, // triggers preflight
@@ -342,18 +344,42 @@ export class QapiClient implements IQapiClient {
       throw new Error(`HTTP ${res.status}: ${errText || res.statusText}`);
     }
 
-    console.log("AHØG!")
+
     return await res.json();
   }
 }
 
+export class QapiClientHosted implements IQapiClient {
+    Dispatch(action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<void> {
+        return Promise.resolve(undefined);
+    }
+
+    InitializeAsync(): Promise<any> {
+        return Promise.resolve(undefined);
+    }
+
+    InvokeAsync(action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<any> {
+        return (window as any).client.InvokeAsync(action);
+    }
+
+    Query(expression: string, variables: { [p: string]: any }): Promise<any> {
+        return Promise.resolve(undefined);
+    }
+
+    Source(expression: string, variables: { [p: string]: any }): Observable<any> {
+        return (window as any).client.Source(expression, variables);
+    }
+
+}
 
 export const QapiContext = createContext<{
   client: IQapiClient
-}>({});
+}>({
+    client: new QapiClientHosted()
+});
 
 
-export function useQapiSource<T = any>(stream: () => Observable<T>): T | undefined {
+export function useQapiSource<T = any>(stream: () => Observable<T> | T): T | undefined {
 
   const [data, setData] = useState<T>();
 
@@ -424,9 +450,9 @@ export function Connect<TStateData extends object = any, TProps extends object =
   props?: (qapi: Qapi & Dispatcher, ownProps: TOwnProps) => TProps,
   qapiq?: Qapiq
 ) {
-  const stateDataFn = stateData ?? ((qapi) => ({} as TStateData));
-  const propsFn = props ?? ((qapi) => ({}));
-  const qapiqFn = qapiq ?? {};
+  const stateDataFn = stateData ?? ((qapi) => ({} as TStateData | Observable<TStateData>));
+  const propsFn = props ?? ((qapi) => ({} as TProps));
+  const qapiqFn = qapiq ?? {assistant: null};
 
   return function (Component: ComponentType<TOwnProps>) {
 
@@ -434,6 +460,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
     function WithQapi(ownProps: TOwnProps) {
 
       const ctx = useContext(QapiContext);
+
 
       const endpointRef = useRef<string | undefined>(undefined);
 
@@ -451,12 +478,12 @@ export function Connect<TStateData extends object = any, TProps extends object =
             }
             return ctx.client.Source(expression, { Endpoint: endpoint });
           },
-          Dispatch<T>(type: string): (payload: T) => void {
-            return (payload) => ctx.client.Dispatch({Type: type, Payload: payload, Meta: {Endpoint: endpoint}});
+          Dispatch<T>(type: string, storeId: string = null): (payload: T) => void {
+            return (payload) => ctx.client.Dispatch({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
           },
-          InvokeAsync<T, TResult>(type: string): (payload: T) => Promise<TResult> {
+          InvokeAsync<T, TResult>(type: string, storeId: string = null): (payload: T) => Promise<TResult> {
             console.log(type)
-            return (payload) => ctx.client.InvokeAsync({Type: type, Payload: payload, Meta: {Endpoint: endpoint}});
+            return (payload) => ctx.client.InvokeAsync({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
           }
         });
       }, [endpoint]);
@@ -465,7 +492,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
 
       const otherProps = useMemo<TProps>(() => propsFn(qapi, ownProps), [qapi, ownProps, endpoint]);
 
-      const { others, streams } = useMemo<TProps>(() => {
+      const { others, streams } = useMemo(() => {
 
         const streams: Record<string, Observable<any>> = {};
         const others: Record<string, any> = {};
@@ -521,3 +548,4 @@ export function Connect<TStateData extends object = any, TProps extends object =
   };
 }
 
+export const connect = Connect;

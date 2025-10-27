@@ -8,7 +8,7 @@ esbuild
             format: "esm",
         minify: true,
         outdir: "dist",
-        entryPoints: ["./src/index.tsx"],
+        entryPoints: ["./src/Index.tsx"],
         treeShaking: true,
         plugins: [nodeExternalsPlugin()],
     })

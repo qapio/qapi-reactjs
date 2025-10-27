@@ -97,6 +97,7 @@ export const Overrides = {};
 export function useStream<T>(configFn: ConfigFunction<T>, variables: {[key: string]: any} = {}): T | undefined {
     const [value, setValue] = useState<T>();
 
+
     useEffect(() =>  {
         const qapi = new Qapi(window.client, Overrides, variables);
 
@@ -223,3 +224,5 @@ export function connect<TState, TDispatch = any>(
         return WithReduxWrapper;
     };
 }
+
+export {Connect} from "./Index";
