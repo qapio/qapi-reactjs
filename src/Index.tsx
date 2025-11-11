@@ -1,6 +1,6 @@
 import {
-  combineLatest,
-  distinctUntilChanged, filter, firstValueFrom, isObservable, map, Observable, of, ReplaySubject, Subject, Subscription
+    combineLatest,
+    distinctUntilChanged, filter, firstValueFrom, isObservable, map, Observable, of, ReplaySubject, Subject, Subscription
 } from "rxjs";
 import { ComponentType, createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as Uuid from "uuid";
@@ -450,6 +450,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
   props?: (qapi: Qapi & Dispatcher, ownProps: TOwnProps) => TProps,
   qapiq?: Qapiq
 ) {
+
   const stateDataFn = stateData ?? ((qapi) => ({} as TStateData | Observable<TStateData>));
   const propsFn = props ?? ((qapi) => ({} as TProps));
   const qapiqFn = qapiq ?? {assistant: null};
@@ -458,8 +459,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
 
 
     function WithQapi(ownProps: TOwnProps) {
-
-      const ctx = useContext(QapiContext);
+        const ctx = useContext(QapiContext);
 
 
       const endpointRef = useRef<string | undefined>(undefined);
@@ -522,19 +522,26 @@ export function Connect<TStateData extends object = any, TProps extends object =
         }
 
         const subscription: Subscription = combineLatestObject(streams).subscribe({
-          next: (val) => setSnapshot(val),
+          next: (val) => {
+              setSnapshot(val);
+          },
           error: (err) => console.error("useStream error:", err)
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription.unsubscribe();
+        };
 
       }, [streams]);
 
-      return <Component
-        {...stateStream}
-        {...ownProps}
-        {...others}
-        {...snapshot}
+      if (!stateStream) {
+          return;
+      }
+
+      const final = {...stateStream, ...ownProps, ...others, ...snapshot}
+
+        return <Component
+        {...final}
       />;
     }
 
