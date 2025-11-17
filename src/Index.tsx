@@ -6,6 +6,8 @@ import { ComponentType, createContext, useContext, useEffect, useMemo, useRef, u
 import * as Uuid from "uuid";
 import * as React from "react";
 
+export {makeSmart, QapiqApp} from "./llm/SmartComponent";
+
 export interface IQapiClient {
     InitializeAsync(): Promise<any>;
     Source(expression: string, variables: {[key: string]: any}): Observable<any>;

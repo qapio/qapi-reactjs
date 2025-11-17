@@ -1,6 +1,6 @@
 {
   "name": "@qapio/qapi-reactjs",
-  "version": "1.0.46",
+  "version": "1.0.53",
   "description": "",
   "type": "module",
   "exports": "./dist/Index.js",
@@ -34,7 +34,11 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "typescript": "^5.8.3",
-    "rxjs": "^7.8.2"
-
+    "rxjs": "^7.8.2",
+    "zod": "^4.1.12",
+    "zod-from-json-schema": "^0.5.2",
+    "uuid": "^13.0.0",
+    "tailwind-merge": "^3.4.0",
+    "clsx": "^2.1.1"
   }
 }
