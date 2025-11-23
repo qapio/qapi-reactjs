@@ -1,6 +1,6 @@
 {
   "name": "@qapio/qapi-reactjs",
-  "version": "1.0.53",
+  "version": "1.0.57",
   "description": "",
   "type": "module",
   "exports": "./dist/Index.js",

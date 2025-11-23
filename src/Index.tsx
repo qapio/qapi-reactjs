@@ -449,7 +449,7 @@ const useAssistant = (endpoint: string) => (component) => {
 
 export function Connect<TStateData extends object = any, TProps extends object = any, TOwnProps extends object = any>(
   stateData?: (qapi: Qapi, ownProps: TOwnProps) => Observable<TStateData>,
-  props?: (qapi: Qapi & Dispatcher, ownProps: TOwnProps) => TProps,
+  props?: (qapi: Qapi & Dispatcher, ownProps: TOwnProps, endpoint: string) => TProps,
   qapiq?: Qapiq
 ) {
 
@@ -492,7 +492,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
 
       const stateStream = useQapiSource<TStateData>(() => stateDataFn(qapi, ownProps));
 
-      const otherProps = useMemo<TProps>(() => propsFn(qapi, ownProps), [qapi, ownProps, endpoint]);
+      const otherProps = useMemo<TProps>(() => propsFn(qapi, ownProps, endpoint), [qapi, ownProps, endpoint]);
 
       const { others, streams } = useMemo(() => {
 
@@ -540,7 +540,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
           return;
       }
 
-      const final = {...stateStream, ...ownProps, ...others, ...snapshot}
+      const final = {...stateStream, ...ownProps, ...others, ...snapshot, ___endpoint: endpoint}
 
         return <Component
         {...final}

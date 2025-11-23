@@ -139,7 +139,7 @@ export const makeSmart = (type: string , schema: string, emptyContent: React.FC 
 
 
                     return <Skeleton className={map[className] || className}/>;
-                }}) : "SKELETON";
+                }}) : "SKELETON123";
         }
 
         return <Component  {...derivedProps}/>

@@ -337,7 +337,7 @@ export const Inner = connect((qapi) => qapi.Source("Qapiq_Assistant.Connect({})"
     return {
         onNext: (payload) => qapi.InvokeAsync("OnNext")(payload),
         onReload: (payload) => qapi.InvokeAsync("Reload")(payload),
-        threads: qapi.Source("Context.GetThreads({})"),
+       // threads: qapi.Source("Context.GetThreads({})"),
         onCreateThread: (payload) => qapi.InvokeAsync("CreateThread")(payload),
         onSwitchThread: (payload) => qapi.InvokeAsync("SwitchThread")(payload),
         onArchiveThread: (payload) => qapi.InvokeAsync("ArchiveThread")(payload),
