@@ -6,36 +6,37 @@ import { ComponentType, createContext, useContext, useEffect, useMemo, useRef, u
 import * as Uuid from "uuid";
 import * as React from "react";
 
-export {makeSmart, QapiqApp} from "./llm/SmartComponent";
+//export {makeSmart, QapiqApp} from "./llm/SmartComponent";
 
 export interface IQapiClient {
     InitializeAsync(): Promise<any>;
-    Source(expression: string, variables: {[key: string]: any}): Observable<any>;
-    Query(expression: string, variables: {[key: string]: any}): Promise<any>;
-    Dispatch(action: {Type: string, Payload: any, Meta: {[key: string]: any}}): Promise<void>;
-    InvokeAsync(action: {Type: string, Payload: any, Meta: {[key: string]: any}}): Promise<any>;
+    Source<T = any>(expression: string, variables: {[key: string]: any}): Observable<T>;
+    //Dispatch<T = any>(action: {Type: string, Payload: T, Meta: {[key: string]: any}}): Promise<void>;
+    //DispatchAsync<T = any, TResult = any>(action: {Type: string, Payload: T, Meta: {[key: string]: any}}): Promise<TResult>;
+    Invoke(invocation: {Name: string, Args: any[], Endpoint: string}): Promise<void>;
+    InvokeAsync<TResult = any>(invocation: {Name: string, Args: any[], Endpoint: string}): Promise<TResult>;
+}
+
+type SessionData = {
+
+}
+
+type SessionOpts = {
+  Qapi?: string
 }
 
 type Qapi = {
-  Source<T>(expression: string): Observable<T>;
+  Source<T = any>(expression: string): Observable<T>;
+  Connect(endpoint: string, opts?: SessionOpts): Observable<SessionData>;
 };
 
 type Dispatcher = {
-  Dispatch<T>(type: string, endpoint?: string): (payload: T) => void;
-  InvokeAsync<T, TResult>(type: string, endpoint?: string): (payload: T) => Promise<TResult>;
+  //Dispatch<T = any>(type: string, endpoint?: string): (payload: T) => Promise<void>;
+  //DispatchAsync<T = any, TResult = any>(type: string, endpoint?: string): (payload: T) => Promise<TResult>;
+  InvokeAsync<TResult = any>(type: string, endpoint?: string): (...args: any) => Promise<TResult>;
+  Invoke(type: string, endpoint?: string): (...args: any) => Promise<void>;
 }
 
-export interface IQapiClient {
-  InitializeAsync(): Promise<any>;
-
-  Source(expression: string, variables: { [key: string]: any }): Observable<any>;
-
-  Query(expression: string, variables: { [key: string]: any }): Promise<any>;
-
-  Dispatch(action: { Type: string, Payload: any, Meta: { [key: string]: any } }): Promise<void>;
-
-  InvokeAsync(action: { Type: string, Payload: any, Meta: { [key: string]: any } }): Promise<any>;
-}
 
 // --- Types ------------------------------------------------------------------
 type ChunkDto = {
@@ -352,22 +353,28 @@ export class QapiClient implements IQapiClient {
 }
 
 export class QapiClientHosted implements IQapiClient {
+/*
     Dispatch(action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<void> {
         return (window as any).client.Dispatch(action);
     }
+
+  DispatchAsync<T = any>(action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<T> {
+    return (window as any).client.Dispatch(action);
+  }
+*/
 
     InitializeAsync(): Promise<any> {
         return Promise.resolve(undefined);
     }
 
-    InvokeAsync(action: { Type: string; Payload: any; Meta: { [p: string]: any } }): Promise<any> {
-        return (window as any).client.InvokeAsync(action);
+    InvokeAsync<TResult = any>(invocation: { Name: string; Args: any[]; Endpoint: string }): Promise<TResult> {
+        return (window as any).client.InvokeAsync(invocation);
     }
 
-    Query(expression: string, variables: { [p: string]: any }): Promise<any> {
-        return Promise.resolve(undefined);
-    }
-
+  Invoke(invocation: { Name: string; Args: any[]; Endpoint: string }): Promise<any> {
+    return (window as any).client.Invoke(invocation);
+  }
+    
     Source(expression: string, variables: { [p: string]: any }): Observable<any> {
         return (window as any).client.Source(expression, variables);
     }
@@ -445,8 +452,6 @@ const useAssistant = (endpoint: string) => (component) => {
 }
 
 
-
-
 export function Connect<TStateData extends object = any, TProps extends object = any, TOwnProps extends object = any>(
   stateData?: (qapi: Qapi, ownProps: TOwnProps) => Observable<TStateData>,
   props?: (qapi: Qapi & Dispatcher, ownProps: TOwnProps, endpoint: string) => TProps,
@@ -463,8 +468,9 @@ export function Connect<TStateData extends object = any, TProps extends object =
     function WithQapi(ownProps: TOwnProps) {
         const ctx = useContext(QapiContext);
 
-
       const endpointRef = useRef<string | undefined>(undefined);
+
+      const dataStoreRef = useRef<string | undefined>(undefined);
 
       if (!endpointRef.current) {
         endpointRef.current = `Interop_${Uuid.v6().replaceAll("-", "")}`;
@@ -480,12 +486,25 @@ export function Connect<TStateData extends object = any, TProps extends object =
             }
             return ctx.client.Source(expression, { Endpoint: endpoint });
           },
-          Dispatch<T>(type: string, storeId: string = null): (payload: T) => void {
+    /*      Dispatch<T = any>(type: string, storeId: string = null): (payload: T) => Promise<void> {
             return (payload) => ctx.client.Dispatch({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
           },
-          InvokeAsync<T, TResult>(type: string, storeId: string = null): (payload: T) => Promise<TResult> {
-
-            return (payload) => ctx.client.InvokeAsync({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
+          DispatchAsync<T = any, TResult = any>(type: string, storeId: string = null): (payload: T) => Promise<TResult> {
+            return (payload) => ctx.client.DispatchAsync<T, TResult>({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
+          },*/
+          InvokeAsync<TResult>(type: string, storeId: string = null): (...args: any) => Promise<TResult> {
+            return (...args: any) => {
+              return ctx.client.InvokeAsync<TResult>({Name: type, Args: args, Endpoint: storeId ?? dataStoreRef.current ?? endpoint});
+            };
+          },
+          Connect(endpoint: string, opts: SessionOpts = {}): Observable<SessionData> {
+            return ctx.client.Source(`${endpoint}.Qap.Connect(${JSON.stringify(opts)})`, { Endpoint: endpointRef.current }).pipe(map((t) => {
+              dataStoreRef.current = t.endpoint;
+              return t;
+            }));
+          },
+          Invoke(type: string, storeId: string = null): (...args: any) => Promise<void> {
+            return (...args: any) => ctx.client.Invoke({Name: type, Args: args, Endpoint: storeId ?? dataStoreRef.current ?? endpoint});
           }
         });
       }, [endpoint]);
@@ -556,5 +575,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
     return WithQapi;
   };
 }
+
+//export const ConnectClient = Connect((qapi) => qapi.Source(""))
 
 export const connect = Connect;
