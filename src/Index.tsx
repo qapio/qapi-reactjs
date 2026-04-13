@@ -18,16 +18,23 @@ export interface IQapiClient {
 }
 
 type SessionData = {
-
+  endpoint: string
+  events: Observable<Event>
 }
 
 type SessionOpts = {
   Qapi?: string
 }
 
+type Event = {
+  type: string
+  payload: any
+}
+
 type Qapi = {
   Source<T = any>(expression: string): Observable<T>;
   Connect(endpoint: string, opts?: SessionOpts): Observable<SessionData>;
+  Events(): Observable<Event>
 };
 
 type Dispatcher = {
@@ -486,6 +493,9 @@ export function Connect<TStateData extends object = any, TProps extends object =
             }
             return ctx.client.Source(expression, { Endpoint: endpoint });
           },
+          Events(): Observable<Event> {
+            return ctx.client.Source(`${window._sessionId}.Qap.Events({})`, { Endpoint: endpoint });
+          },
     /*      Dispatch<T = any>(type: string, storeId: string = null): (payload: T) => Promise<void> {
             return (payload) => ctx.client.Dispatch({Type: type, Payload: payload, Meta: {Endpoint: storeId ?? endpoint}});
           },
@@ -500,7 +510,7 @@ export function Connect<TStateData extends object = any, TProps extends object =
           Connect(endpoint: string, opts: SessionOpts = {}): Observable<SessionData> {
             return ctx.client.Source(`${endpoint}.Qap.Connect(${JSON.stringify(opts)})`, { Endpoint: endpointRef.current }).pipe(map((t) => {
               dataStoreRef.current = t.endpoint;
-              return t;
+              return {...t};
             }));
           },
           Invoke(type: string, storeId: string = null): (...args: any) => Promise<void> {

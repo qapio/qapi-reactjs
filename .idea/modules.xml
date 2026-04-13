@@ -2,7 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/qapi-reactjs.iml" filepath="$PROJECT_DIR$/.idea/qapi-reactjs.iml" />
+      <module
+        fileurl="file://$PROJECT_DIR$/.idea/qapi-reactjs.iml"
+        filepath="$PROJECT_DIR$/.idea/qapi-reactjs.iml"
+      />
     </modules>
   </component>
 </project>
